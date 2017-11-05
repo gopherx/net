@@ -1,13 +1,19 @@
 package nat
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
+
+	"github.com/gopherx/base/binary/read"
+	"github.com/gopherx/base/binary/write"
 	"github.com/gopherx/base/errors"
 )
 
 const (
-	MessageIntegrityType     AttributeType = 0x0008
-	MessageIntegrityRfcName  string        = "MESSAGE-INTEGRITY"
-	MessageIntegrityMaxBytes int           = 20
+	MessageIntegrityAttributeType     AttributeType = 0x0008
+	MessageIntegrityAttributeRfcName  string        = "MESSAGE-INTEGRITY"
+	MessageIntegrityAttributeMaxBytes int           = 20
+	MessageIntegrityAttributeSize     uint16        = 20
 )
 
 func init() {
@@ -16,24 +22,38 @@ func init() {
 
 func RegisterParseMessageIntegrityAttribute(p *MessageParser) {
 	p.Register(
-		MessageIntegrityType,
-		MessageIntegrityRfcName,
-		func(b []byte) (Attribute, error) {
-			return ParseMessageIntegrityAttribute(b)
-		})
+		MessageIntegrityAttributeType,
+		MessageIntegrityAttributeRfcName,
+		func(r *read.BigEndian, l uint16) (Attribute, error) {
+			return ParseMessageIntegrityAttribute(r, l)
+		},
+		func(w *write.BigEndian, a Attribute) error {
+			return errors.Unimplemented(nil, "Use PrintOptions instead")
+		},
+	)
 }
 
-func ParseMessageIntegrityAttribute(b []byte) (MessageIntegrityAttribute, error) {
+func ParseMessageIntegrityAttribute(r *read.BigEndian, l uint16) (MessageIntegrityAttribute, error) {
 	res := MessageIntegrityAttribute{}
 
-	if len(b) > MessageIntegrityMaxBytes {
-		return res, errors.InvalidArgument(nil, "too many bytes", len(b), MessageIntegrityMaxBytes)
-	}
-
-	res.HMAC = b
+	res.HMAC = r.Bytes(int(MessageIntegrityAttributeSize))
 	return res, nil
+}
+
+func PrintMessageIntegrityAttribute(w *write.BigEndian, key []byte) error {
+	raw := w.Dest[0:w.Offset]
+	WriteTLVHeader(w, MessageIntegrityAttributeType, MessageIntegrityAttributeSize)
+	mac := hmac.New(sha1.New, key)
+	mac.Write(raw)
+	w.Bytes(mac.Sum(nil))
+
+	return nil
 }
 
 type MessageIntegrityAttribute struct {
 	HMAC []byte
+}
+
+func (m MessageIntegrityAttribute) Type() AttributeType {
+	return MessageIntegrityAttributeType
 }

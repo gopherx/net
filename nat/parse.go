@@ -1,97 +1,116 @@
 package nat
 
 import (
-	"github.com/gopherx/base/errors"
-	"github.com/gopherx/base/read"
-)
+	"bytes"
+	"io"
 
-const (
-	// HeaderSize is the size of the STUN header.
-	HeaderSize int = 20
+	"github.com/golang/glog"
+
+	"github.com/gopherx/base/binary/read"
+	"github.com/gopherx/base/errors"
 )
 
 var (
-	DefaultParser *MessageParser = &MessageParser{map[AttributeType]registration{}}
+	DefaultParser *MessageParser = &MessageParser{DefaultRegistry}
 
-	unknownAttributeRegistration registration = registration{
+	unknownAttributeRegistration = Registration{
 		"UNKNOWN",
-		func(b []byte) (Attribute, error) {
-			return UnknownAttribute{b}, nil
+		func(r *read.BigEndian, l uint16) (Attribute, error) {
+			return UnknownAttribute{r.Bytes(int(l))}, nil
 		},
+		nil,
 	}
 )
 
-// AttributeParser parses bytes into Attribute instances.
-type AttributeParserFunc func(b []byte) (Attribute, error)
+// AttributeParserFunc parses bytes into Attribute instances.
+type AttributeParserFunc func(r *read.BigEndian, l uint16) (Attribute, error)
 
 // MessageParser is used to parse bytes into STUN messages.
 type MessageParser struct {
-	registry map[AttributeType]registration
+	Registry AttributeRegistry
 }
 
 // Parse parses bytes into a STUN message.
 func (p *MessageParser) Parse(b []byte) (Message, error) {
-	if len(b) < HeaderSize {
-		return EmptyMessage, errors.InvalidArgument(nil, "buffer too small; size:", b)
-	}
+	return p.ParseFrom(bytes.NewBuffer(b))
+}
 
-	mt := MessageType(read.Uint16(b))
+// ParseFrom parses a Message from the bytes.
+func (p *MessageParser) ParseFrom(r io.Reader) (Message, error) {
+	return p.parse(read.NewBigEndian(r))
+}
+
+func (p *MessageParser) parse(r *read.BigEndian) (Message, error) {
+	mt := MessageType(r.Uint16())
 	if 0xC0&mt == 0xC0 {
 		//...first two bits not zero.
 		return EmptyMessage, errors.InvalidArgument(nil, "first bits not zero", 0xC0&mt)
 	}
 
-	ml := read.Uint16(b[2:4])
-	cookie := read.Uint32(b[4:8])
+	ml := r.Uint16()
+	cookie := r.Uint32()
 	if cookie != MagicCookie {
 		return EmptyMessage, errors.InvalidArgument(nil, "invalid cookie", cookie)
 	}
 
-	p0, p1, p2 := read.Uint32x3(b[8:20])
+	p0, p1, p2 := r.Uint32x3()
 	tid := TransactionID{p0, p1, p2}
 
-	remd := b[20:]
-	var attrs []Attribute = nil
+	if r.Err != nil {
+		return EmptyMessage, errors.InvalidArgument(r.Err, "reader failure")
+	}
 
-	msg := Message{mt, tid, ml, attrs}
+	msg := Message{mt, tid, ml, map[AttributeType]Attribute{}, nil}
+	remaining := ml
 
-	for len(remd) > 0 {
+	for remaining > 0 {
 		//...read the TLV encoded attribute (Type, Length, Value)
-		at := AttributeType(read.Uint16(remd))
-		al := read.Uint16(remd[2:4])
-		ad := remd[4 : 4+al]
+		at := AttributeType(r.Uint16())
+		al := r.Uint16()
+		remaining -= TLVHeaderSize
 
-		end := 4 + al
-		//...data is always be padded to a 32-bit boundry
-		if end%4 > 0 {
-			end += (4 - end%4)
-		}
-
-		remd = remd[end:]
-
-		reg, ok := p.registry[at]
+		reg, ok := p.Registry[at]
 		if !ok {
 			reg = unknownAttributeRegistration
 		}
 
-		a, err := reg.parse(ad)
-		if err != nil {
-			return EmptyMessage, errors.InvalidArgument(err, "failed to parse attribute", at, reg.name)
+		if v := glog.V(11); v {
+			v.Infof("attribute: [%v] %s (size: %d)", at, reg.Name, al)
 		}
 
-		msg.Attrs = append(msg.Attrs, a)
+		r.ReadBytes = 0
+		a, err := reg.Parse(r, al)
+		if err != nil {
+			return EmptyMessage, errors.InvalidArgument(err, "failed to parse attribute", at, reg.Name)
+		}
+
+		if uint16(r.ReadBytes) != al {
+			return EmptyMessage, errors.InvalidArgument(nil, "read does not match length", r.ReadBytes, al)
+		}
+
+		if r.Err != nil {
+			return EmptyMessage, r.Err
+		}
+
+		remaining -= al
+
+		if r.ReadBytes%4 > 0 {
+			pad := (4 - r.ReadBytes%4)
+			for i := 0; i < pad; i++ {
+				r.Byte()
+				remaining--
+			}
+		}
+
+		msg.Attrs[at] = a
+		msg.Types = append(msg.Types, at)
 	}
 
 	return msg, nil
 }
 
-func (p *MessageParser) Register(t AttributeType, name string, parse AttributeParserFunc) {
-	p.registry[t] = registration{name, parse}
-}
-
-type registration struct {
-	name  string
-	parse AttributeParserFunc
+func (p *MessageParser) Register(t AttributeType, name string, parse AttributeParserFunc, print AttributePrinterFunc) {
+	p.Registry[t] = Registration{name, parse, print}
 }
 
 // ParseMessage parses a byte array into a Message object.
@@ -101,4 +120,8 @@ func ParseMessage(b []byte) (Message, error) {
 
 type UnknownAttribute struct {
 	Data []byte
+}
+
+func (u UnknownAttribute) Type() AttributeType {
+	panic("never ever call this")
 }

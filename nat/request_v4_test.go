@@ -1,6 +1,8 @@
 package nat
 
 var (
+	RFC5769SampleRequestPwd = []byte("VOkJxbRl1RmTxUk/WvJxBt")
+
 	RFC5769SampleRequest = []byte{
 		0x00, 0x01, 0x00, 0x58, //   Request type and message length
 		0x21, 0x12, 0xa4, 0x42, //   Magic cookie
@@ -31,7 +33,7 @@ var (
 		0xe5, 0x7a, 0x3b, 0xcf, //   CRC32 fingerprint
 	}
 
-	RFC5769SampleRequestMessage = Message{
+	RFC5769SampleRequestMessage = MakeMessage(
 		MessageType(0x0001),
 		TransactionID{
 			0xb7e7a701,
@@ -63,5 +65,5 @@ var (
 				0xe57a3bcf,
 			},
 		},
-	}
+	)
 )

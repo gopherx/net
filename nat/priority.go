@@ -1,12 +1,14 @@
 package nat
 
 import (
-	"github.com/gopherx/base/read"
+	"github.com/gopherx/base/binary/read"
+	"github.com/gopherx/base/binary/write"
 )
 
 const (
 	PriorityAttributeType    AttributeType = 0x0024
 	PriorityAttributeRfcName string        = "PRIORITY"
+	PriorityAttributeSize    uint16        = 0x04
 )
 
 func init() {
@@ -17,15 +19,29 @@ func RegisterPriorityAttribute(p *MessageParser) {
 	p.Register(
 		PriorityAttributeType,
 		PriorityAttributeRfcName,
-		func(b []byte) (Attribute, error) {
-			return ParsePriorityAttribute(b)
-		})
+		func(r *read.BigEndian, l uint16) (Attribute, error) {
+			return ParsePriorityAttribute(r, l)
+		},
+		func(w *write.BigEndian, a Attribute) error {
+			return PrintPriorityAttribute(w, a.(PriorityAttribute))
+		},
+	)
 }
 
-func ParsePriorityAttribute(b []byte) (PriorityAttribute, error) {
-	return PriorityAttribute{read.Uint32(b)}, nil
+func ParsePriorityAttribute(r *read.BigEndian, l uint16) (PriorityAttribute, error) {
+	return PriorityAttribute{r.Uint32()}, nil
+}
+
+func PrintPriorityAttribute(w *write.BigEndian, p PriorityAttribute) error {
+	WriteTLVHeader(w, PriorityAttributeType, PriorityAttributeSize)
+	w.Uint32(p.Priority)
+	return nil
 }
 
 type PriorityAttribute struct {
 	Priority uint32
+}
+
+func (p PriorityAttribute) Type() AttributeType {
+	return PriorityAttributeType
 }
