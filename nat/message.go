@@ -134,8 +134,8 @@ func (m Message) Software() (SoftwareAttribute, bool) {
 }
 
 // NewMessage returns a new Message object.
-func NewMessage(t MessageType, attrs ...Attribute) Message {
-	return MakeMessage(t, NewTransactionID(), 0, attrs)
+func NewMessage(method uint16, class MessageClass, attrs ...Attribute) Message {
+	return MakeMessage(NewMessageType(method, class), NewTransactionID(), 0, attrs)
 }
 
 // MakeMessage is a low level convenience function with access to all details.

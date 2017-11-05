@@ -55,6 +55,14 @@ func TestParseMessage(t *testing.T) {
 			1,
 			MessageClassRequest,
 		},
+		{
+			"rfc5769 sample request - long term creds",
+			RFC5769SampleRequestWithLongTermCreds,
+			codes.OK,
+			RFC5769SampleRequestWithLongTermCredsMessage,
+			1,
+			MessageClassRequest,
+		},
 	}
 
 	for _, tc := range tests {

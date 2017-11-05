@@ -15,17 +15,17 @@ type MuxSTUN struct {
 }
 
 func (m *MuxSTUN) ServeSTUN(w nat.ResponseWriter, r *nat.Request) {
-	m := r.Msg.Type.Method()
-	h, ok := m.handlers[m]
+	method := r.Msg.Type.Method()
+	h, ok := m.handlers[method]
 	v := glog.V(11)
 	if !ok {
-		v.Info("handler missing; method: ", m)
+		v.Info("handler missing; method: ", method)
 		return
 	}
 
 	h.ServeSTUN(w, r)
 }
 
-func (m *MuxSTUN) Add(t nat.MessageType, h nat.Handler) {
-	m.handlers[t] = h
+func (m *MuxSTUN) Add(method uint16, h nat.Handler) {
+	m.handlers[method] = h
 }

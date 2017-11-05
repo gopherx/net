@@ -30,9 +30,9 @@ func (b *BindingHandler) ServeSTUN(w nat.ResponseWriter, r *nat.Request) {
 }
 
 func NewBindingRequestMessage(attrs ...nat.Attribute) nat.Message {
-	return nat.NewMessage(MessageTypeBindingRequest, attrs...)
+	return nat.NewMessage(MethodBinding, nat.MessageClassRequest, attrs...)
 }
 
 func NewBindingResponseMessage(rid nat.TransactionID, ip net.IP, port int) nat.Message {
-	return nat.NewMessage(MessageTypeBindingResponseSuccess, nat.XorMappedAddressAttribute{ip, port})
+	return nat.NewMessage(MethodBinding, nat.MessageClassResponseSuccess, nat.XorMappedAddressAttribute{ip, port})
 }

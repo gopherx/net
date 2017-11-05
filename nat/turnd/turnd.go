@@ -18,8 +18,8 @@ func main() {
 	glog.Info("hello turnd")
 
 	handler := nath.Mux()
-	handler.Add(nath.MessageTypeBindingRequest, &nath.BindingHandler{})
-	handler.Add(nath.MessageTypeAllocateRequest, &nath.AllocateHandler{})
+	handler.Add(nath.MethodBinding, &nath.BindingHandler{})
+	handler.Add(nath.MethodAllocate, nath.RequireLongTermCreds(&nath.AllocateHandler{}))
 
 	parser := &nat.MessageParser{nat.DefaultRegistry}
 
