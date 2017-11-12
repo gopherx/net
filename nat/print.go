@@ -81,9 +81,9 @@ func (p *MessagePrinter) writeMsg(b []byte, m Message, opts *PrintOptions) (uint
 	w.Uint16(MessageTypeMask & uint16(m.Type))
 	w.Uint16(0xABCD)
 	w.Uint32(MagicCookie)
-	w.Uint32(m.ID.p0)
-	w.Uint32(m.ID.p1)
-	w.Uint32(m.ID.p2)
+	w.Uint32(m.TID.p0)
+	w.Uint32(m.TID.p1)
+	w.Uint32(m.TID.p2)
 
 	for _, at := range m.Types {
 		reg, ok := p.Registry[at]

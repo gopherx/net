@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gopherx/base/binary/read"
+	"github.com/gopherx/base/errors"
 
 	crand "crypto/rand"
 	mrand "math/rand"
@@ -116,11 +117,10 @@ func NewTransactionID() TransactionID {
 }
 
 type Message struct {
-	Type   MessageType
-	ID     TransactionID
-	length uint16
-	Attrs  map[AttributeType]Attribute
-	Types  []AttributeType
+	Type  MessageType
+	TID   TransactionID
+	Attrs map[AttributeType]Attribute
+	Types []AttributeType
 }
 
 func (m Message) Software() (SoftwareAttribute, bool) {
@@ -129,18 +129,78 @@ func (m Message) Software() (SoftwareAttribute, bool) {
 		return SoftwareAttribute{}, false
 	}
 
-	ua, ok := a.(SoftwareAttribute)
+	swa, ok := a.(SoftwareAttribute)
+	return swa, ok
+}
+
+func (m Message) Nonce() (NonceAttribute, bool) {
+	a, ok := m.Attrs[NonceAttributeType]
+	if !ok {
+		return NonceAttribute{}, false
+	}
+
+	na, ok := a.(NonceAttribute)
+	return na, ok
+}
+
+func (m Message) Realm() (RealmAttribute, bool) {
+	a, ok := m.Attrs[RealmAttributeType]
+	if !ok {
+		return RealmAttribute{}, false
+	}
+
+	ra, ok := a.(RealmAttribute)
+	return ra, ok
+}
+
+func (m Message) Username() (UsernameAttribute, bool) {
+	a, ok := m.Attrs[UsernameAttributeType]
+	if !ok {
+		return UsernameAttribute{}, false
+	}
+
+	ua, ok := a.(UsernameAttribute)
 	return ua, ok
 }
 
-// NewMessage returns a new Message object.
+func (m Message) MessageIntegrity() (MessageIntegrityAttribute, bool) {
+	a, ok := m.Attrs[MessageIntegrityAttributeType]
+	if !ok {
+		return MessageIntegrityAttribute{}, false
+	}
+
+	mi, ok := a.(MessageIntegrityAttribute)
+	return mi, ok
+}
+
+// NewMessage returns a new Message.
 func NewMessage(method uint16, class MessageClass, attrs ...Attribute) Message {
-	return MakeMessage(NewMessageType(method, class), NewTransactionID(), 0, attrs)
+	return MakeMessage(NewMessageType(method, class), NewTransactionID(), attrs)
+}
+
+// NewRequest creates a new request message.
+func NewRequest(method uint16, attrs ...Attribute) Message {
+	tID := NewTransactionID()
+	return MakeMessage(NewMessageType(method, MessageClassRequest), tID, attrs)
+}
+
+// NewErrorResponse returns a new response Message with one ERROR-CODE attribute.
+func NewErrorResponse(
+	method uint16,
+	tID TransactionID,
+	class byte,
+	number byte,
+	reason string,
+	attrs ...Attribute) Message {
+
+	attrs = append(attrs, ErrorCodeAttribute{class, number, reason})
+
+	return MakeMessage(NewMessageType(method, MessageClassResponseError), tID, attrs)
 }
 
 // MakeMessage is a low level convenience function with access to all details.
-func MakeMessage(t MessageType, id TransactionID, l uint16, attrs []Attribute) Message {
-	m := Message{t, id, l, nil, nil}
+func MakeMessage(t MessageType, tID TransactionID, attrs []Attribute) Message {
+	m := Message{t, tID, nil, nil}
 	m.initAttrs(attrs)
 	return m
 }
@@ -162,4 +222,38 @@ func (a AttributeType) String() string {
 
 type Attribute interface {
 	Type() AttributeType
+}
+
+// Read127CharString reads a string that is at most 127 chars long (and 783 bytes)
+func Read127CharString(r *read.BigEndian, l uint16) (string, error) {
+	const maxBytes = 783
+	const maxChars = 128
+
+	if l > maxBytes {
+		return "", errors.InvalidArgument(nil, fmt.Sprintf("too many bytes in text; max=%d current%d", maxBytes, l))
+	}
+
+	txt := string(r.Bytes(int(l)))
+	if len(txt) > maxChars {
+		return "", errors.InvalidArgument(nil, fmt.Sprintf("too many chars in text; max=%d current=%d", maxChars, len(txt)))
+	}
+
+	return txt, nil
+}
+
+// Check127CharString verifies that the string is at most 127 chars and 783 bytes long.
+func Check127CharString(txt string) ([]byte, error) {
+	const maxBytes = 783
+	const maxChars = 128
+
+	if len(txt) >= maxChars {
+		return nil, errors.InvalidArgument(nil, "too many chars; max=%d current=%d", maxChars, len(txt))
+	}
+
+	bytes := []byte(txt)
+	if len(bytes) > int(maxBytes) {
+		return nil, errors.InvalidArgument(nil, "oo many bytes; max=%d current=%d", maxBytes, len(bytes))
+	}
+
+	return bytes, nil
 }

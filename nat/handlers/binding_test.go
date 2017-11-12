@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"net"
 	"testing"
 
 	"github.com/gopherx/net/nat"
@@ -9,9 +8,8 @@ import (
 )
 
 func TestBindingHandler(t *testing.T) {
-	req := NewBindingRequestMessage(newSoftwareAttribute(t))
+	req := NewBindingRequestMessage(test.SwAttr)
 	h := &BindingHandler{}
 	writer := &test.Writer{}
-	h.ServeSTUN(writer, &nat.Request{req, net.ParseIP("192.168.0.1"), 123234, ""})
-
+	h.ServeSTUN(writer, &nat.Request{req, test.IP, test.Port, test.Zone})
 }

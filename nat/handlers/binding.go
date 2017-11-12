@@ -21,7 +21,7 @@ func (b *BindingHandler) ServeSTUN(w nat.ResponseWriter, r *nat.Request) {
 	ua, _ := r.Msg.Software()
 	logf("[BindingHandler] ServeSTUN Software:%q", ua.Text)
 
-	err := w.Write(NewBindingResponseMessage(r.Msg.ID, r.IP, r.Port))
+	err := w.Write(NewBindingResponseMessage(r.Msg.TID, r.IP, r.Port), nil)
 	if err != nil {
 		logf = glog.Errorf
 	}

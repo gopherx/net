@@ -12,6 +12,10 @@ import (
 	nath "github.com/gopherx/net/nat/handlers"
 )
 
+var (
+	realm = flag.String("realm", "example.com", "The realm to use")
+)
+
 func main() {
 	flag.Parse()
 
@@ -19,13 +23,15 @@ func main() {
 
 	handler := nath.Mux()
 	handler.Add(nath.MethodBinding, &nath.BindingHandler{})
-	handler.Add(nath.MethodAllocate, nath.RequireLongTermCreds(&nath.AllocateHandler{}))
+	handler.Add(nath.MethodAllocate, nath.RequireLongTermCreds(*realm, &nath.AllocateHandler{}))
 
 	parser := &nat.MessageParser{nat.DefaultRegistry}
+	printer := &nat.MessagePrinter{nat.DefaultRegistry, 1024}
 
 	udpsrv := &nat.UDPServer{
 		nil,
 		parser,
+		printer,
 		handler,
 	}
 

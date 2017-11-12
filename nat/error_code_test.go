@@ -17,7 +17,7 @@ func TestErrorCode(t *testing.T) {
 		'e', 'd', '!', 0x20,
 	}
 
-	rawNoHeader := rawErrorCode[4:]
+	rawNoHeader := rawErrorCode[TLVHeaderSize:]
 
 	// the error code reason is padded and that byte is not included in length.
 	l := uint16(len(rawNoHeader) - 1)

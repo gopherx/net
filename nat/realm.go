@@ -1,18 +1,13 @@
 package nat
 
 import (
-	"fmt"
-
 	"github.com/gopherx/base/binary/read"
 	"github.com/gopherx/base/binary/write"
-	"github.com/gopherx/base/errors"
 )
 
 const (
-	RealmAttributeType     AttributeType = 0x0014
-	RealmAttributeRfcName  string        = "REALM"
-	RealmAttributeMaxChars uint16        = 128
-	RealmAttributeMaxBytes uint16        = 763
+	RealmAttributeType    AttributeType = 0x0014
+	RealmAttributeRfcName string        = "REALM"
 )
 
 func init() {
@@ -33,22 +28,16 @@ func RegisterRealmAttribute(p *MessageParser) {
 }
 
 func ParseRealmAttribute(r *read.BigEndian, l uint16) (RealmAttribute, error) {
-	realm := RealmAttribute{}
-	if l > RealmAttributeMaxBytes {
-		return realm, errors.InvalidArgument(nil, fmt.Sprintf("too many bytes in realm; max=%d current=%d", RealmAttributeMaxBytes, l))
-	}
-
-	txt := string(r.Bytes(int(l)))
-	if uint16(len(txt)) > RealmAttributeMaxChars {
-		return realm, errors.InvalidArgument(nil, fmt.Sprintf("too many chars in realm; max=%d current=%d", RealmAttributeMaxChars, len(txt)))
-	}
-
-	realm.Realm = txt
-	return realm, nil
+	realm, err := Read127CharString(r, l)
+	return RealmAttribute{realm}, err
 }
 
 func PrintRealmAttribute(w *write.BigEndian, a RealmAttribute) error {
-	bytes := []byte(a.Realm)
+	bytes, err := Check127CharString(a.Realm)
+	if err != nil {
+		return err
+	}
+
 	WriteTLVHeader(w, RealmAttributeType, uint16(len(bytes)))
 	w.Bytes(bytes)
 	WriteTLVPadding(w, uint16(len(bytes)))

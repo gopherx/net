@@ -1,18 +1,13 @@
 package nat
 
 import (
-	"fmt"
-
 	"github.com/gopherx/base/binary/read"
 	"github.com/gopherx/base/binary/write"
-	"github.com/gopherx/base/errors"
 )
 
 const (
-	ErrorCodeAttributeType     AttributeType = 0x0009
-	ErrorCodeAttributeRfcName  string        = "ERROR-CODE"
-	ErrorCodeAttributeMaxChars uint16        = 128
-	ErrorCodeAttributeMaxBytes uint16        = 763
+	ErrorCodeAttributeType    AttributeType = 0x0009
+	ErrorCodeAttributeRfcName string        = "ERROR-CODE"
 )
 
 func init() {
@@ -40,13 +35,9 @@ func ParseErrorCodeAttribute(r *read.BigEndian, l uint16) (ErrorCodeAttribute, e
 	class := byte((tmp & 0x00000700) >> 8)
 
 	l -= uint16(4)
-	if l > ErrorCodeAttributeMaxBytes {
-		return code, errors.InvalidArgument(nil, fmt.Sprintf("too many bytes in reason; max=%d current=%d", ErrorCodeAttributeMaxBytes, l))
-	}
-
-	reason := string(r.Bytes(int(l)))
-	if uint16(len(reason)) > ErrorCodeAttributeMaxBytes {
-		return code, errors.InvalidArgument(nil, fmt.Sprintf("too many chars in reason; max=%d current=%d", ErrorCodeAttributeMaxBytes, len(reason)))
+	reason, err := Read127CharString(r, l)
+	if err != nil {
+		return code, err
 	}
 
 	code.Class = class
@@ -56,7 +47,11 @@ func ParseErrorCodeAttribute(r *read.BigEndian, l uint16) (ErrorCodeAttribute, e
 }
 
 func PrintErrorCodeAttribute(w *write.BigEndian, a ErrorCodeAttribute) error {
-	bytes := []byte(a.Reason)
+	bytes, err := Check127CharString(a.Reason)
+	if err != nil {
+		return err
+	}
+
 	written := uint16(4 + len(bytes))
 
 	WriteTLVHeader(w, ErrorCodeAttributeType, written)

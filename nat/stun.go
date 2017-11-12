@@ -23,5 +23,5 @@ type Request struct {
 
 // ResponseWriter is used to respond to requests.
 type ResponseWriter interface {
-	Write(m Message) error
+	Write(m Message, opts *PrintOptions) error
 }

@@ -40,7 +40,6 @@ var (
 			0xbc34d686,
 			0xfa87dfae,
 		},
-		0x58,
 		[]Attribute{
 			SoftwareAttribute{
 				"STUN test client",
@@ -106,7 +105,6 @@ var (
 			0xc6ad72c0,
 			0x29da412e,
 		},
-		0x60,
 		[]Attribute{
 			UsernameAttribute{
 				"\u30de\u30c8\u30ea\u30c3\u30af\u30b9",

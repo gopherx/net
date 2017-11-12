@@ -60,7 +60,7 @@ func (p *MessageParser) parse(r *read.BigEndian) (Message, error) {
 		return EmptyMessage, errors.InvalidArgument(r.Err, "reader failure")
 	}
 
-	msg := Message{mt, tid, ml, map[AttributeType]Attribute{}, nil}
+	msg := Message{mt, tid, map[AttributeType]Attribute{}, nil}
 	remaining := ml
 
 	for remaining > 0 {

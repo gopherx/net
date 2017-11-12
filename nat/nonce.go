@@ -1,21 +1,29 @@
 package nat
 
 import (
-	"fmt"
+	"crypto/rand"
+
+	"github.com/golang/glog"
 
 	"github.com/gopherx/base/binary/read"
 	"github.com/gopherx/base/binary/write"
-	"github.com/gopherx/base/errors"
 )
 
 const (
-	NonceAttributeType     AttributeType = 0x0015
-	NonceAttributeRfcName  string        = "NONCE"
-	NonceAttributeMaxChars uint16        = 128
-	NonceAttributeMaxBytes uint16        = 763
+	NonceAttributeType    AttributeType = 0x0015
+	NonceAttributeRfcName string        = "NONCE"
+)
+
+var (
+	alphabet = []byte{
+		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+	}
+
+	nonceDataChan = make(chan string, 1024)
 )
 
 func init() {
+	go produceNonce()
 	RegisterNonceAttribute(DefaultParser)
 }
 
@@ -33,26 +41,61 @@ func RegisterNonceAttribute(p *MessageParser) {
 }
 
 func ParseNonceAttribute(r *read.BigEndian, l uint16) (NonceAttribute, error) {
-	Nonce := NonceAttribute{}
-	if l > NonceAttributeMaxBytes {
-		return Nonce, errors.InvalidArgument(nil, fmt.Sprintf("too many bytes in Nonce; max=%d current=%d", NonceAttributeMaxBytes, l))
-	}
-
-	txt := string(r.Bytes(int(l)))
-	if uint16(len(txt)) > NonceAttributeMaxChars {
-		return Nonce, errors.InvalidArgument(nil, fmt.Sprintf("too many chars in Nonce; max=%d current=%d", NonceAttributeMaxChars, len(txt)))
-	}
-
-	Nonce.Nonce = txt
-	return Nonce, nil
+	txt, err := Read127CharString(r, l)
+	return NonceAttribute{txt}, err
 }
 
 func PrintNonceAttribute(w *write.BigEndian, a NonceAttribute) error {
-	bytes := []byte(a.Nonce)
+	bytes, err := Check127CharString(a.Nonce)
+	if err != nil {
+		return err
+	}
 	WriteTLVHeader(w, NonceAttributeType, uint16(len(bytes)))
 	w.Bytes(bytes)
 	WriteTLVPadding(w, uint16(len(bytes)))
 	return nil
+}
+
+func produceNonce() {
+	bytes := make([]byte, 127)
+	tmp := bytes[63:]
+	for {
+		const maxRetries = 5
+		i := 0
+		for i = 0; i < maxRetries; i++ {
+			_, err := rand.Read(tmp)
+			if err != nil {
+				glog.Error("failed to read crypto.Rand; err:", err)
+				continue
+			}
+
+			at := 0
+			for _, c := range tmp {
+				bytes[at] = alphabet[c>>4]
+				at++
+				if at < len(bytes) {
+					bytes[at] = alphabet[c&0x0F]
+					at++
+				}
+			}
+
+			nonceDataChan <- string(bytes)
+			break
+		}
+
+		if i == maxRetries {
+			glog.Fatal("failed to create nonce; terminating!!!")
+		}
+	}
+}
+
+// NewNonceAttribute creates a new NonceAttribute
+func NewNonceAttribute() (NonceAttribute, error) {
+	a := NonceAttribute{}
+
+	a.Nonce = <-nonceDataChan
+
+	return a, nil
 }
 
 type NonceAttribute struct {

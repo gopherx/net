@@ -1,18 +1,13 @@
 package nat
 
 import (
-	"fmt"
-
 	"github.com/gopherx/base/binary/read"
 	"github.com/gopherx/base/binary/write"
-	"github.com/gopherx/base/errors"
 )
 
 const (
-	SoftwareAttributeType     AttributeType = 0x8022
-	SoftwareAttributeRfcName  string        = "SOFTWARE"
-	SoftwareAttributeMaxChars uint16        = 128
-	SoftwareAttributeMaxBytes uint16        = 763
+	SoftwareAttributeType    AttributeType = 0x8022
+	SoftwareAttributeRfcName string        = "SOFTWARE"
 )
 
 func init() {
@@ -34,34 +29,19 @@ func RegisterSoftwareAttribute(r AttributeRegistry) {
 
 // ParseSoftwareAttribute parses the bytes into a SoftwareAttribute instance.
 func ParseSoftwareAttribute(r *read.BigEndian, l uint16) (SoftwareAttribute, error) {
-	res := SoftwareAttribute{}
-	if l > SoftwareAttributeMaxBytes {
-		return res, errors.InvalidArgument(nil, fmt.Sprintf("too many bytes in text; max=%d current=%d", SoftwareAttributeMaxBytes, l))
-	}
-
-	txt := string(r.Bytes(int(l)))
-	if len(txt) >= int(SoftwareAttributeMaxChars) {
-		return res, errors.InvalidArgument(nil, "too many chars in text; max=%d current=%d", SoftwareAttributeMaxChars, len(txt))
-	}
-
-	res.Text = txt
-	return res, nil
+	sw, err := Read127CharString(r, l)
+	return SoftwareAttribute{sw}, err
 }
 
 func PrintSoftwareAttribute(w *write.BigEndian, sa SoftwareAttribute) error {
-	if len(sa.Text) >= int(SoftwareAttributeMaxChars) {
-		return errors.InvalidArgument(nil, "Too many chars; max=%d current=%d", SoftwareAttributeMaxChars, len(sa.Text))
+	bytes, err := Check127CharString(sa.Text)
+	if err != nil {
+		return err
 	}
 
-	bytes := []byte(sa.Text)
-	if len(bytes) > int(SoftwareAttributeMaxBytes) {
-		return errors.InvalidArgument(nil, "Too many bytes; max=%d current=%d", SoftwareAttributeMaxBytes, len(bytes))
-	}
-
-	bl := uint16(len(bytes))
-	WriteTLVHeader(w, SoftwareAttributeType, bl)
+	WriteTLVHeader(w, SoftwareAttributeType, uint16(len(bytes)))
 	w.Bytes(bytes)
-	WriteTLVPadding(w, bl)
+	WriteTLVPadding(w, uint16(len(bytes)))
 
 	return nil
 }

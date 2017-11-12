@@ -13,6 +13,7 @@ var (
 type UDPServer struct {
 	Addr    *net.UDPAddr
 	Parser  *MessageParser
+	Printer *MessagePrinter
 	Handler Handler
 }
 
@@ -44,15 +45,35 @@ func (u *UDPServer) read(conn *net.UDPConn) {
 			continue
 		}
 
-		go u.dispatch(buff[0:n], src)
+		go u.dispatch(conn, buff[0:n], src)
 	}
 }
 
-func (u *UDPServer) dispatch(buff []byte, src *net.UDPAddr) {
+type writer struct {
+	conn *net.UDPConn
+	u    *UDPServer
+	src  *net.UDPAddr
+}
+
+func (w writer) Write(msg Message, opts *PrintOptions) error {
+	bytes, err := w.u.Printer.Print(msg, opts)
+	if err != nil {
+		return err
+	}
+
+	if v := glog.V(11); v {
+		v.Infof("[%v] %v (opts:%v err:%v)", w.src, msg, opts, err)
+	}
+
+	_, err = w.conn.WriteToUDP(bytes, w.src)
+	return err
+}
+
+func (u *UDPServer) dispatch(conn *net.UDPConn, buff []byte, src *net.UDPAddr) {
 	m, err := u.Parser.Parse(buff)
 	if v := glog.V(11); v {
 		v.Infof("[%v] %v (err:%v)", src, m, err)
 	}
 
-	u.Handler.ServeSTUN(nil, &Request{m, src.IP, src.Port, src.Zone})
+	u.Handler.ServeSTUN(writer{conn, u, src}, &Request{m, src.IP, src.Port, src.Zone})
 }
