@@ -68,3 +68,38 @@ func TestWriteTLVPadding(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckWriteLen(t *testing.T) {
+	msg := MakeMessage(
+		MessageType(0x0001),
+		TransactionID{
+			0xb7e7a701,
+			0xbc34d686,
+			0xfa87dfae,
+		},
+		[]Attribute{
+			SoftwareAttribute{
+				"STUN test client",
+			},
+			PriorityAttribute{
+				0x6e0001ff,
+			},
+			IceControlledAttribute{
+				0x932ff9b151263b36,
+			},
+			UsernameAttribute{
+				"evtj:h6vY",
+			},
+		},
+	)
+
+	mp := &MessagePrinter{DefaultRegistry, 8}
+	bytes, err := mp.Print(msg, nil)
+	if err != nil {
+		t.Fatal("Print failed; err:", err)
+	}
+
+	for i := 0; i < 8; i++ {
+		t.Logf("%x", bytes[i])
+	}
+}

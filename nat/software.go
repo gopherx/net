@@ -21,9 +21,6 @@ func RegisterSoftwareAttribute(r AttributeRegistry) {
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseSoftwareAttribute(r, l)
 		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintSoftwareAttribute(w, a.(SoftwareAttribute))
-		},
 	)
 }
 
@@ -33,7 +30,7 @@ func ParseSoftwareAttribute(r *read.BigEndian, l uint16) (SoftwareAttribute, err
 	return SoftwareAttribute{sw}, err
 }
 
-func PrintSoftwareAttribute(w *write.BigEndian, sa SoftwareAttribute) error {
+func (sa SoftwareAttribute) Print(w *write.BigEndian) error {
 	bytes, err := Check127CharString(sa.Text)
 	if err != nil {
 		return err

@@ -1,10 +1,12 @@
 package nat
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
 	"github.com/gopherx/base/binary/read"
+	"github.com/gopherx/base/binary/write"
 	"github.com/gopherx/base/errors"
 
 	crand "crypto/rand"
@@ -116,16 +118,44 @@ func NewTransactionID() TransactionID {
 	return TransactionID{rnd.Uint32(), rnd.Uint32(), rnd.Uint32()}
 }
 
+type AttrRef struct {
+	Type AttributeType
+	Attr Attribute
+}
+
 type Message struct {
 	Type  MessageType
 	TID   TransactionID
-	Attrs map[AttributeType]Attribute
-	Types []AttributeType
+	Attrs []AttrRef
+}
+
+func (m Message) String() string {
+	b := &bytes.Buffer{}
+	fmt.Fprintf(b, "Method:0x%x\n", m.Type.Method())
+	fmt.Fprintf(b, "Class:%v\n", m.Type.Class())
+	fmt.Fprintf(b, "TID:0x%x 0x%x 0x%x\n", m.TID.p0, m.TID.p1, m.TID.p2)
+	for _, a := range m.Attrs {
+		fmt.Fprintf(b, "%s: \n", a.Type)
+		fmt.Fprintf(b, "\t%v\n", a.Attr)
+	}
+
+	return b.String()
+}
+
+func (m Message) Attr(t AttributeType) (Attribute, int) {
+	for i := 0; i < len(m.Attrs); i++ {
+		aref := m.Attrs[i]
+		if aref.Type == t {
+			return aref.Attr, i
+		}
+	}
+
+	return nil, -1
 }
 
 func (m Message) Software() (SoftwareAttribute, bool) {
-	a, ok := m.Attrs[SoftwareAttributeType]
-	if !ok {
+	a, at := m.Attr(SoftwareAttributeType)
+	if at < 0 {
 		return SoftwareAttribute{}, false
 	}
 
@@ -134,8 +164,8 @@ func (m Message) Software() (SoftwareAttribute, bool) {
 }
 
 func (m Message) Nonce() (NonceAttribute, bool) {
-	a, ok := m.Attrs[NonceAttributeType]
-	if !ok {
+	a, at := m.Attr(NonceAttributeType)
+	if at < 0 {
 		return NonceAttribute{}, false
 	}
 
@@ -144,8 +174,8 @@ func (m Message) Nonce() (NonceAttribute, bool) {
 }
 
 func (m Message) Realm() (RealmAttribute, bool) {
-	a, ok := m.Attrs[RealmAttributeType]
-	if !ok {
+	a, at := m.Attr(RealmAttributeType)
+	if at < 0 {
 		return RealmAttribute{}, false
 	}
 
@@ -154,8 +184,8 @@ func (m Message) Realm() (RealmAttribute, bool) {
 }
 
 func (m Message) Username() (UsernameAttribute, bool) {
-	a, ok := m.Attrs[UsernameAttributeType]
-	if !ok {
+	a, at := m.Attr(UsernameAttributeType)
+	if at < 0 {
 		return UsernameAttribute{}, false
 	}
 
@@ -164,8 +194,8 @@ func (m Message) Username() (UsernameAttribute, bool) {
 }
 
 func (m Message) MessageIntegrity() (MessageIntegrityAttribute, bool) {
-	a, ok := m.Attrs[MessageIntegrityAttributeType]
-	if !ok {
+	a, at := m.Attr(MessageIntegrityAttributeType)
+	if at < 0 {
 		return MessageIntegrityAttribute{}, false
 	}
 
@@ -200,17 +230,15 @@ func NewErrorResponse(
 
 // MakeMessage is a low level convenience function with access to all details.
 func MakeMessage(t MessageType, tID TransactionID, attrs []Attribute) Message {
-	m := Message{t, tID, nil, nil}
+	m := Message{t, tID, nil}
 	m.initAttrs(attrs)
 	return m
 }
 
 func (m *Message) initAttrs(attrs []Attribute) {
-	m.Attrs = map[AttributeType]Attribute{}
+	m.Attrs = make([]AttrRef, 0, len(attrs))
 	for _, attr := range attrs {
-		at := attr.Type()
-		m.Attrs[at] = attr
-		m.Types = append(m.Types, at)
+		m.Attrs = append(m.Attrs, AttrRef{attr.Type(), attr})
 	}
 }
 
@@ -222,6 +250,7 @@ func (a AttributeType) String() string {
 
 type Attribute interface {
 	Type() AttributeType
+	Print(w *write.BigEndian) error
 }
 
 // Read127CharString reads a string that is at most 127 chars long (and 783 bytes)

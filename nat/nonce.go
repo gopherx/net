@@ -24,18 +24,15 @@ var (
 
 func init() {
 	go produceNonce()
-	RegisterNonceAttribute(DefaultParser)
+	RegisterNonceAttribute(DefaultRegistry)
 }
 
-func RegisterNonceAttribute(p *MessageParser) {
-	p.Register(
+func RegisterNonceAttribute(r AttributeRegistry) {
+	r.Register(
 		NonceAttributeType,
 		NonceAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseNonceAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintNonceAttribute(w, a.(NonceAttribute))
 		},
 	)
 }
@@ -45,7 +42,7 @@ func ParseNonceAttribute(r *read.BigEndian, l uint16) (NonceAttribute, error) {
 	return NonceAttribute{txt}, err
 }
 
-func PrintNonceAttribute(w *write.BigEndian, a NonceAttribute) error {
+func (a NonceAttribute) Print(w *write.BigEndian) error {
 	bytes, err := Check127CharString(a.Nonce)
 	if err != nil {
 		return err

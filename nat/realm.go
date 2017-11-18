@@ -11,18 +11,15 @@ const (
 )
 
 func init() {
-	RegisterRealmAttribute(DefaultParser)
+	RegisterRealmAttribute(DefaultRegistry)
 }
 
-func RegisterRealmAttribute(p *MessageParser) {
-	p.Register(
+func RegisterRealmAttribute(r AttributeRegistry) {
+	r.Register(
 		RealmAttributeType,
 		RealmAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseRealmAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintRealmAttribute(w, a.(RealmAttribute))
 		},
 	)
 }
@@ -32,7 +29,7 @@ func ParseRealmAttribute(r *read.BigEndian, l uint16) (RealmAttribute, error) {
 	return RealmAttribute{realm}, err
 }
 
-func PrintRealmAttribute(w *write.BigEndian, a RealmAttribute) error {
+func (a RealmAttribute) Print(w *write.BigEndian) error {
 	bytes, err := Check127CharString(a.Realm)
 	if err != nil {
 		return err

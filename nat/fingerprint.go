@@ -5,7 +5,6 @@ import (
 
 	"github.com/gopherx/base/binary/read"
 	"github.com/gopherx/base/binary/write"
-	"github.com/gopherx/base/errors"
 )
 
 const (
@@ -15,24 +14,25 @@ const (
 )
 
 func init() {
-	RegisterFingerprintAttribute(DefaultParser)
+	RegisterFingerprintAttribute(DefaultRegistry)
 }
 
-func RegisterFingerprintAttribute(p *MessageParser) {
-	p.Register(
+func RegisterFingerprintAttribute(r AttributeRegistry) {
+	r.Register(
 		FingerprintAttributeType,
 		FingerprintAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseFingerprintAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return errors.Unimplemented(nil, "Use PrintOptions instead")
 		},
 	)
 }
 
 func ParseFingerprintAttribute(r *read.BigEndian, l uint16) (FingerprintAttribute, error) {
 	return FingerprintAttribute{r.Uint32()}, nil
+}
+
+func (f FingerprintAttribute) Print(w *write.BigEndian) error {
+	panic("don't call this!!! fingerprinting is implemented in the MessagePrinter")
 }
 
 func PrintFingerprintAttribute(w *write.BigEndian) error {

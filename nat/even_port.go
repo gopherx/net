@@ -13,18 +13,15 @@ const (
 )
 
 func init() {
-	RegisterEvenPortAttribute(DefaultParser)
+	RegisterEvenPortAttribute(DefaultRegistry)
 }
 
-func RegisterEvenPortAttribute(p *MessageParser) {
-	p.Register(
+func RegisterEvenPortAttribute(r AttributeRegistry) {
+	r.Register(
 		EvenPortAttributeType,
 		EvenPortAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseEvenPortAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintEvenPortAttribute(w, a.(EvenPortAttribute))
 		},
 	)
 }
@@ -34,7 +31,7 @@ func ParseEvenPortAttribute(r *read.BigEndian, l uint16) (EvenPortAttribute, err
 	return EvenPortAttribute{b0&EvenPortAttributeMask == EvenPortAttributeMask}, nil
 }
 
-func PrintEvenPortAttribute(w *write.BigEndian, a EvenPortAttribute) error {
+func (a EvenPortAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, EvenPortAttributeType, EvenPortAttributeSize)
 	v := byte(0)
 	if a.Even {

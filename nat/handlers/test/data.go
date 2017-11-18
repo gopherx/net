@@ -12,4 +12,8 @@ var (
 	Zone = "unknown"
 
 	SwAttr = nat.SoftwareAttribute{"unit-test"}
+
+	Method = uint16(0x123)
+
+	TID = nat.NewTransactionID()
 )

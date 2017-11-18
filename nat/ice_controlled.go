@@ -12,18 +12,15 @@ const (
 )
 
 func init() {
-	RegisterIceControlledAttribute(DefaultParser)
+	RegisterIceControlledAttribute(DefaultRegistry)
 }
 
-func RegisterIceControlledAttribute(p *MessageParser) {
-	p.Register(
+func RegisterIceControlledAttribute(r AttributeRegistry) {
+	r.Register(
 		IceControlledAttributeType,
 		IceControlledAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseIceControlledAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintIceControlledAttribute(w, a.(IceControlledAttribute))
 		},
 	)
 }
@@ -32,7 +29,7 @@ func ParseIceControlledAttribute(r *read.BigEndian, l uint16) (Attribute, error)
 	return IceControlledAttribute{r.Uint64()}, nil
 }
 
-func PrintIceControlledAttribute(w *write.BigEndian, i IceControlledAttribute) error {
+func (i IceControlledAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, IceControlledAttributeType, IceControlledAttributeSize)
 	w.Uint64(i.TieBreaker)
 	return nil

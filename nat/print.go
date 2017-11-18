@@ -12,7 +12,7 @@ import (
 var (
 	DefaultInitialBufferSize = 512
 	DefaultPrinter           = &MessagePrinter{DefaultRegistry, DefaultInitialBufferSize}
-	DefaultPrintOptions      = &PrintOptions{nil, true, DefaultInitialBufferSize}
+	DefaultPrintOptions      = &PrintOptions{nil, false, DefaultInitialBufferSize}
 )
 
 // AttributePrinterFunc prints the attribute into the byte buffer.
@@ -27,6 +27,10 @@ type PrintOptions struct {
 	MessageIntegrityKey []byte
 	Fingerprint         bool
 	InitialBufferSize   int
+}
+
+func Print(m Message, opts *PrintOptions) ([]byte, error) {
+	return DefaultPrinter.Print(m, opts)
 }
 
 func (p *MessagePrinter) Print(m Message, opts *PrintOptions) ([]byte, error) {
@@ -85,14 +89,15 @@ func (p *MessagePrinter) writeMsg(b []byte, m Message, opts *PrintOptions) (uint
 	w.Uint32(m.TID.p1)
 	w.Uint32(m.TID.p2)
 
-	for _, at := range m.Types {
-		reg, ok := p.Registry[at]
-		if !ok || reg.Print == nil {
+	for _, a := range m.Attrs {
+		_, ok := p.Registry[a.Type]
+		if !ok {
 			//...unknown attribute...
+			panic("handle unknown attributes")
 			continue
 		}
 
-		a := m.Attrs[at]
+		a, _ := m.Attr(a.Type)
 		if _, isMIA := a.(MessageIntegrityAttribute); isMIA {
 			//...ignore any message integrity attribute!
 			glog.Error("MessageIntegrityAttribute should not be added to Message; use PrintOptions instead. Ignoring")
@@ -105,7 +110,7 @@ func (p *MessagePrinter) writeMsg(b []byte, m Message, opts *PrintOptions) (uint
 			continue
 		}
 
-		err := reg.Print(w, a)
+		err := a.Print(w)
 		if err != nil {
 			return 0, errors.Internal(err, "Failed to print attribute", a, w)
 		}
@@ -116,18 +121,16 @@ func (p *MessagePrinter) writeMsg(b []byte, m Message, opts *PrintOptions) (uint
 	}
 
 	if opts.MessageIntegrityKey != nil {
-		//...message integrity is calculated from the start of the message to the end of the
-		// message integrity attribute; we therefore write the length of the message as if there
-		// is no attribute beyond the message integrity attribute. If there is a fingerprint
-		// attribute then the size needs adjustment.
-		tmpSize := uint16(w.Offset) - HeaderSize + TLVHeaderSize + MessageIntegrityAttributeSize
-		w.Uint16At(2, tmpSize)
 		PrintMessageIntegrityAttribute(w, opts.MessageIntegrityKey)
 	}
 
 	if opts.Fingerprint {
+		//...fingerprint is calculated with the length already written; including the fingerprint.
 		w.Uint16At(2, uint16(w.Offset)-HeaderSize+TLVHeaderSize+FingerprintAttributeSize)
 		PrintFingerprintAttribute(w)
+	} else {
+		//...no fingerprint; just write the current size
+		w.Uint16At(2, uint16(w.Offset)-HeaderSize+TLVHeaderSize)
 	}
 
 	if w.Err != nil {

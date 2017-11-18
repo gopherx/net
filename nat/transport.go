@@ -12,18 +12,15 @@ const (
 )
 
 func init() {
-	RegisterRequestedTransportAttribute(DefaultParser)
+	RegisterRequestedTransportAttribute(DefaultRegistry)
 }
 
-func RegisterRequestedTransportAttribute(p *MessageParser) {
-	p.Register(
+func RegisterRequestedTransportAttribute(r AttributeRegistry) {
+	r.Register(
 		RequestedTransportAttributeType,
 		RequestedTransportAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseRequestedTransportAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintRequestedTransportAttribute(w, a.(RequestedTransportAttribute))
 		},
 	)
 }
@@ -37,7 +34,7 @@ func ParseRequestedTransportAttribute(r *read.BigEndian, l uint16) (RequestedTra
 	return RequestedTransportAttribute{p}, nil
 }
 
-func PrintRequestedTransportAttribute(w *write.BigEndian, a RequestedTransportAttribute) error {
+func (a RequestedTransportAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, RequestedTransportAttributeType, RequestedTransportAttributeSize)
 
 	w.Byte(a.Protocol)

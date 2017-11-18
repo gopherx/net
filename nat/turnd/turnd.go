@@ -7,13 +7,15 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/gopherx/base/errors"
 	"github.com/gopherx/net/nat"
 
 	nath "github.com/gopherx/net/nat/handlers"
 )
 
 var (
-	realm = flag.String("realm", "example.com", "The realm to use")
+	realm    = flag.String("realm", "example.com", "The realm to use")
+	password = flag.String("passwrd", "", "The password to use")
 )
 
 func main() {
@@ -25,7 +27,16 @@ func main() {
 	handler.Add(nath.MethodBinding, &nath.BindingHandler{})
 	handler.Add(nath.MethodAllocate, nath.RequireLongTermCreds(*realm, &nath.AllocateHandler{}))
 
-	parser := &nat.MessageParser{nat.DefaultRegistry}
+	parser := &nat.MessageParser{
+		nat.DefaultRegistry,
+		func(username string) (string, error) {
+			if *password == "" {
+				return "", errors.Internal(nil, "password not set")
+			}
+
+			return *password, nil
+		},
+	}
 	printer := &nat.MessagePrinter{nat.DefaultRegistry, 1024}
 
 	udpsrv := &nat.UDPServer{

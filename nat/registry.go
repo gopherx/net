@@ -10,9 +10,8 @@ type AttributeRegistry map[AttributeType]Registration
 type Registration struct {
 	Name  string
 	Parse AttributeParserFunc
-	Print AttributePrinterFunc
 }
 
-func (a AttributeRegistry) Register(t AttributeType, name string, parse AttributeParserFunc, print AttributePrinterFunc) {
-	a[t] = Registration{name, parse, print}
+func (a AttributeRegistry) Register(t AttributeType, name string, parse AttributeParserFunc) {
+	a[t] = Registration{name, parse}
 }

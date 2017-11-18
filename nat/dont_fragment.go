@@ -12,18 +12,15 @@ const (
 )
 
 func init() {
-	RegisterDontFragmentAttribute(DefaultParser)
+	RegisterDontFragmentAttribute(DefaultRegistry)
 }
 
-func RegisterDontFragmentAttribute(p *MessageParser) {
-	p.Register(
+func RegisterDontFragmentAttribute(r AttributeRegistry) {
+	r.Register(
 		DontFragmentAttributeType,
 		DontFragmentAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseDontFragmentAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintDontFragmentAttribute(w, a.(DontFragmentAttribute))
 		},
 	)
 }
@@ -32,7 +29,7 @@ func ParseDontFragmentAttribute(r *read.BigEndian, l uint16) (DontFragmentAttrib
 	return DontFragmentAttribute{}, nil
 }
 
-func PrintDontFragmentAttribute(w *write.BigEndian, a DontFragmentAttribute) error {
+func (a DontFragmentAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, DontFragmentAttributeType, DontFragmentAttributeSize)
 	return nil
 }

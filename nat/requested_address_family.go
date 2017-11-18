@@ -14,18 +14,15 @@ const (
 )
 
 func init() {
-	RegisterRequestedAddressFamiliyAttribute(DefaultParser)
+	RegisterRequestedAddressFamiliyAttribute(DefaultRegistry)
 }
 
-func RegisterRequestedAddressFamiliyAttribute(p *MessageParser) {
-	p.Register(
+func RegisterRequestedAddressFamiliyAttribute(r AttributeRegistry) {
+	r.Register(
 		RequestedAddressFamiliyAttributeType,
 		RequestedAddressFamiliyAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseRequestedAddressFamiliyAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintRequestedAddressFamiliyAttribute(w, a.(RequestedAddressFamiliyAttribute))
 		},
 	)
 }
@@ -37,7 +34,7 @@ func ParseRequestedAddressFamiliyAttribute(r *read.BigEndian, l uint16) (Request
 	return RequestedAddressFamiliyAttribute{v}, nil
 }
 
-func PrintRequestedAddressFamiliyAttribute(w *write.BigEndian, a RequestedAddressFamiliyAttribute) error {
+func (a RequestedAddressFamiliyAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, RequestedAddressFamiliyAttributeType, RequestedAddressFamiliyAttributeSize)
 	w.Byte(a.Family)
 	//...can't use padding to fill due to spec requirement of using zeros

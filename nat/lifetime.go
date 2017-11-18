@@ -14,18 +14,15 @@ const (
 )
 
 func init() {
-	RegisterLifetimeAttribute(DefaultParser)
+	RegisterLifetimeAttribute(DefaultRegistry)
 }
 
-func RegisterLifetimeAttribute(p *MessageParser) {
-	p.Register(
+func RegisterLifetimeAttribute(r AttributeRegistry) {
+	r.Register(
 		LifetimeAttributeType,
 		LifetimeAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseLifetimeAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintLifetimeAttribute(w, a.(LifetimeAttribute))
 		},
 	)
 }
@@ -35,7 +32,7 @@ func ParseLifetimeAttribute(r *read.BigEndian, l uint16) (LifetimeAttribute, err
 	return LifetimeAttribute{time.Duration(s) * time.Second}, nil
 }
 
-func PrintLifetimeAttribute(w *write.BigEndian, a LifetimeAttribute) error {
+func (a LifetimeAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, LifetimeAttributeType, LifetimeAttributeSize)
 	w.Uint32(uint32(a.Lifetime.Seconds()))
 	return nil

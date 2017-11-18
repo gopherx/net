@@ -13,18 +13,15 @@ const (
 )
 
 func init() {
-	RegisterUsernameAttribute(DefaultParser)
+	RegisterUsernameAttribute(DefaultRegistry)
 }
 
-func RegisterUsernameAttribute(p *MessageParser) {
-	p.Register(
+func RegisterUsernameAttribute(r AttributeRegistry) {
+	r.Register(
 		UsernameAttributeType,
 		UsernameAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseUsernameAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintUsernameAttribute(w, a.(UsernameAttribute))
 		},
 	)
 }
@@ -40,7 +37,7 @@ func ParseUsernameAttribute(r *read.BigEndian, l uint16) (UsernameAttribute, err
 	return res, nil
 }
 
-func PrintUsernameAttribute(w *write.BigEndian, u UsernameAttribute) error {
+func (u UsernameAttribute) Print(w *write.BigEndian) error {
 	unb := []byte(u.Username)
 	if len(unb) > int(UsernameAttributeMaxBytes) {
 		return errors.InvalidArgument(nil, "too many bytes in username", len(u.Username), len(unb))
@@ -50,7 +47,6 @@ func PrintUsernameAttribute(w *write.BigEndian, u UsernameAttribute) error {
 	w.Bytes(unb)
 	WriteTLVPadding(w, uint16(len(unb)))
 
-	//return TLVHeaderSize + uint16(len(unb)) + p, nil
 	return nil
 }
 

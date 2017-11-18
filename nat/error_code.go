@@ -11,18 +11,15 @@ const (
 )
 
 func init() {
-	RegisterErrorCodeAttribute(DefaultParser)
+	RegisterErrorCodeAttribute(DefaultRegistry)
 }
 
-func RegisterErrorCodeAttribute(p *MessageParser) {
-	p.Register(
+func RegisterErrorCodeAttribute(r AttributeRegistry) {
+	r.Register(
 		ErrorCodeAttributeType,
 		ErrorCodeAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParseErrorCodeAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintErrorCodeAttribute(w, a.(ErrorCodeAttribute))
 		},
 	)
 }
@@ -46,7 +43,7 @@ func ParseErrorCodeAttribute(r *read.BigEndian, l uint16) (ErrorCodeAttribute, e
 	return code, nil
 }
 
-func PrintErrorCodeAttribute(w *write.BigEndian, a ErrorCodeAttribute) error {
+func (a ErrorCodeAttribute) Print(w *write.BigEndian) error {
 	bytes, err := Check127CharString(a.Reason)
 	if err != nil {
 		return err

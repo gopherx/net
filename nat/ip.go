@@ -2,6 +2,8 @@ package nat
 
 import (
 	"net"
+
+	"github.com/gopherx/base/binary/write"
 )
 
 const (
@@ -21,4 +23,8 @@ type XorMappedAddressAttribute struct {
 
 func (x XorMappedAddressAttribute) Type() AttributeType {
 	return XorMappedAddressAttributeType
+}
+
+func (x XorMappedAddressAttribute) Print(w *write.BigEndian) error {
+	panic("implement me!!!!")
 }

@@ -12,18 +12,15 @@ const (
 )
 
 func init() {
-	RegisterPriorityAttribute(DefaultParser)
+	RegisterPriorityAttribute(DefaultRegistry)
 }
 
-func RegisterPriorityAttribute(p *MessageParser) {
-	p.Register(
+func RegisterPriorityAttribute(r AttributeRegistry) {
+	r.Register(
 		PriorityAttributeType,
 		PriorityAttributeRfcName,
 		func(r *read.BigEndian, l uint16) (Attribute, error) {
 			return ParsePriorityAttribute(r, l)
-		},
-		func(w *write.BigEndian, a Attribute) error {
-			return PrintPriorityAttribute(w, a.(PriorityAttribute))
 		},
 	)
 }
@@ -32,7 +29,7 @@ func ParsePriorityAttribute(r *read.BigEndian, l uint16) (PriorityAttribute, err
 	return PriorityAttribute{r.Uint32()}, nil
 }
 
-func PrintPriorityAttribute(w *write.BigEndian, p PriorityAttribute) error {
+func (p PriorityAttribute) Print(w *write.BigEndian) error {
 	WriteTLVHeader(w, PriorityAttributeType, PriorityAttributeSize)
 	w.Uint32(p.Priority)
 	return nil

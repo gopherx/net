@@ -35,7 +35,10 @@ func TestErrorCode(t *testing.T) {
 	}
 
 	writer := &write.BigEndian{make([]byte, 1500), 0, nil}
-	PrintErrorCodeAttribute(writer, want)
+	err = want.Print(writer)
+	if err != nil {
+		t.Fatal("Print(...) failed; err:", err)
+	}
 	rawReversed := writer.Dest[0:writer.Offset]
 	if !reflect.DeepEqual(rawReversed, rawErrorCode) {
 		t.Fatalf("bad result; got:%+v want:%+v", rawReversed, rawErrorCode)
